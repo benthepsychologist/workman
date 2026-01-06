@@ -1,0 +1,6 @@
+version: '0.6'
+governor:
+  path: ~/.local/local-governor
+autogov:
+  enabled: true
+  source: org

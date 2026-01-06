@@ -1,0 +1,18 @@
+aip_id: AIP-repo-2026-01-05-001
+step_id: step-001
+step_index: 1
+created_at: '2026-01-06T00:05:06.183918+00:00'
+objective: 'Create the workman package at `/workspace/workman` with: - `pyproject.toml` with dependencies
+  (jsonschema, python-ulid) - `src/workman/`: - `__init__.py` (exports: compile) - `compile.py` (compile
+  en…'
+files_to_touch: []
+verification_steps: []
+allowed_paths:
+- /workspace/workman/**
+forbidden_paths:
+- '*.lock'
+- .env*
+- .git/**
+- secrets/**
+estimated_complexity: low
+requires_human_review: false

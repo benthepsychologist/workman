@@ -1,0 +1,12 @@
+{
+  "step_id": "step-001",
+  "aip_id": "AIP-repo-2026-01-05-001",
+  "termination_reason": "FAIL_DIRTY_WORKTREE",
+  "iterations_attempted": 0,
+  "passed": false,
+  "error": "Failed to get repo state: Command '['git', 'rev-parse', 'HEAD']' returned non-zero exit status 128.",
+  "touched_files_count": 0,
+  "adapter_name": "claude",
+  "artifacts_dir": "AIP-repo-2026-01-05-001/2026-01-06T00-04-54/step-001",
+  "timestamp": "2026-01-06T00:04:55.934503+00:00"
+}
