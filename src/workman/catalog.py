@@ -1,6 +1,9 @@
 """PM Op Catalog: OpSpec definitions for the PM core set (v0.1)."""
 
 from dataclasses import dataclass, field
+from typing import Callable
+
+from workman.builders import generic_pm_builder
 
 
 @dataclass(frozen=True)
@@ -11,6 +14,7 @@ class OpSpec:
     id_prefix: str
     id_field: str
     event_type: str
+    builder: Callable[..., dict]
     is_create: bool = False
     fk_asserts: list[tuple[str, str]] = field(default_factory=list)
 
@@ -23,6 +27,7 @@ OP_CATALOG: dict[str, OpSpec] = {
         id_prefix="proj",
         id_field="project_id",
         event_type="project.created",
+        builder=generic_pm_builder,
         is_create=True,
     ),
     "pm.project.close": OpSpec(
@@ -32,6 +37,7 @@ OP_CATALOG: dict[str, OpSpec] = {
         id_prefix="proj",
         id_field="project_id",
         event_type="project.closed",
+        builder=generic_pm_builder,
     ),
     "pm.work_item.create": OpSpec(
         op="pm.work_item.create",
@@ -40,6 +46,7 @@ OP_CATALOG: dict[str, OpSpec] = {
         id_prefix="wi",
         id_field="work_item_id",
         event_type="work_item.created",
+        builder=generic_pm_builder,
         is_create=True,
         fk_asserts=[("project_id", "project")],
     ),
@@ -50,6 +57,7 @@ OP_CATALOG: dict[str, OpSpec] = {
         id_prefix="wi",
         id_field="work_item_id",
         event_type="work_item.completed",
+        builder=generic_pm_builder,
     ),
     "pm.deliverable.create": OpSpec(
         op="pm.deliverable.create",
@@ -58,6 +66,7 @@ OP_CATALOG: dict[str, OpSpec] = {
         id_prefix="del",
         id_field="deliverable_id",
         event_type="deliverable.created",
+        builder=generic_pm_builder,
         is_create=True,
         fk_asserts=[("project_id", "project")],
     ),
@@ -68,6 +77,7 @@ OP_CATALOG: dict[str, OpSpec] = {
         id_prefix="del",
         id_field="deliverable_id",
         event_type="deliverable.completed",
+        builder=generic_pm_builder,
     ),
 }
 
