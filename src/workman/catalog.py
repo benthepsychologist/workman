@@ -59,6 +59,16 @@ OP_CATALOG: dict[str, OpSpec] = {
         event_type="work_item.completed",
         builder=generic_pm_builder,
     ),
+    "pm.work_item.move": OpSpec(
+        op="pm.work_item.move",
+        request_schema="iglu:org1.workman/pm.work_item.move/jsonschema/1-0-0",
+        aggregate_type="work_item",
+        id_prefix="wi",
+        id_field="work_item_id",
+        event_type="work_item.moved",
+        builder=generic_pm_builder,
+        fk_asserts=[("project_id", "project")],
+    ),
     "pm.deliverable.create": OpSpec(
         op="pm.deliverable.create",
         request_schema="iglu:org1.workman/pm.deliverable.create/jsonschema/1-0-0",
