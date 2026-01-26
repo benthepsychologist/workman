@@ -1,6 +1,3 @@
-import os
-
-
 def test_generate_id_prefix():
     from workman.ids import generate_id
 

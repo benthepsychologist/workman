@@ -1,9 +1,6 @@
 """Tests for schema resolution and payload validation."""
 
 import json
-import os
-import tempfile
-from pathlib import Path
 
 import pytest
 
