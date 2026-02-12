@@ -85,10 +85,12 @@ class TestOPCatalog:
         for op in expected_ops:
             assert op in OP_CATALOG, f"Missing op: {op}"
 
-    def test_all_ops_have_pm_namespace(self):
-        """All ops should be under pm.* namespace."""
+    def test_all_ops_have_valid_namespace(self):
+        """All ops should be under pm.* or link.* namespace."""
         for op_name in OP_CATALOG:
-            assert op_name.startswith("pm."), f"Op {op_name} not in pm.* namespace"
+            assert op_name.startswith("pm.") or op_name.startswith("link."), (
+                f"Op {op_name} not in pm.* or link.* namespace"
+            )
 
     def test_all_ops_have_builder(self):
         """All ops should have a builder function."""

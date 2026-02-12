@@ -26,6 +26,16 @@ def compile(op: str, payload: dict, ctx: dict, pins: dict | None = None) -> dict
     schema = resolve_schema(op_spec.request_schema)
     validate_payload(payload, schema)
 
+    # Artifact container FK validation: at least one container required
+    if op == "pm.artifact.create":
+        _CONTAINER_FKS = ("work_item_id", "deliverable_id", "project_id", "opsstream_id")
+        if not any(payload.get(fk) for fk in _CONTAINER_FKS):
+            from workman.errors import ValidationError
+            raise ValidationError(
+                "pm.artifact.create requires at least one container FK "
+                "(work_item_id, deliverable_id, project_id, or opsstream_id)"
+            )
+
     caller_supplied_id = op_spec.id_field in payload and payload[op_spec.id_field]
     if caller_supplied_id:
         aggregate_id = payload[op_spec.id_field]

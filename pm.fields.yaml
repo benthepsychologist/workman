@@ -1,0 +1,400 @@
+# pm.fields.yaml — Declarative PM field definitions
+# All PM field types, enums, editability, and defaults in one place.
+
+enums:
+  kind:
+    values: [TASK, ISSUE, CHANGE, RISK, DECISION, MILESTONE, OTHER]
+    default: TASK
+    description: "Classification of work item type"
+
+  state:
+    values: [NEW, PLANNED, IN_PROGRESS, BLOCKED, DONE, CANCELLED, DEFERRED]
+    default: NEW
+    description: "WorkItem lifecycle state"
+
+  priority:
+    values: [LOW, MEDIUM, HIGH, CRITICAL]
+    default: MEDIUM
+    description: "Priority level"
+
+  severity:
+    values: [LOW, MEDIUM, HIGH]
+    description: "Severity level, primarily for ISSUE/RISK types"
+
+  project_status:
+    values: [IDEA, PLANNED, ACTIVE, PAUSED, COMPLETED, CANCELLED]
+    default: ACTIVE
+    description: "Project lifecycle status"
+
+  deliverable_status:
+    values: [PLANNED, IN_PROGRESS, DONE, REJECTED]
+    default: PLANNED
+    description: "Deliverable lifecycle status"
+
+  opsstream_type:
+    values: [CLINICAL_OPS, CONSULTING_OPS, INTERNAL_OPS, OTHER]
+    default: OTHER
+    description: "Type of operational stream"
+
+  opsstream_status:
+    values: [ACTIVE, PAUSED, CLOSED]
+    default: ACTIVE
+    description: "OpsStream lifecycle status"
+
+  artifact_kind:
+    values: [SESSION_NOTE, REPORT, TEMPLATE, CORRESPONDENCE, POLICY, INTAKE, MEMO, OTHER]
+    default: OTHER
+    description: "Classification of artifact content type"
+
+  artifact_status:
+    values: [DRAFT, DEFERRED, FINAL, DELIVERED, SUPERSEDED, ARCHIVED]
+    default: DRAFT
+    description: "Artifact lifecycle status"
+
+  delivered_via:
+    values: [gdrive, email, other]
+    description: "Delivery channel for artifact content"
+
+  atom_type:
+    values: [work, concept, entity, note, event]
+    description: "AKM atom classification"
+
+  processing_status:
+    values: [unprocessed, triaged, processed]
+    default: unprocessed
+    description: "AKM atom processing pipeline status"
+
+  lifecycle_status:
+    values: [active, deprecated, archived]
+    default: active
+    description: "AKM atom lifecycle status"
+
+  source_type:
+    values: [document, transcript, dataset, audio, video, web_page, other]
+    description: "AKM source content type"
+
+  predicate:
+    values:
+      - blocks
+      - blocked_by
+      - depends_on
+      - part_of
+      - has_part
+      - continues
+      - branches_from
+      - superseded_by
+      - implements
+      - applies
+      - refines
+      - informed_by
+      - related_to
+      - broader_than
+      - narrower_than
+      - example_of
+      - supports
+      - conflicts_with
+      - contrasts_with
+      - child_of
+      - parent_of
+      - student_of
+      - teacher_of
+      - influenced_by
+    description: "Unified AKM link predicate vocabulary"
+
+fields:
+  # WorkItem fields
+  - name: work_item_id
+    type: string
+    entity: work_item
+    editability: immutable
+    description: "Stable identifier (ULID, prefixed wi_)"
+
+  - name: title
+    type: string
+    entity: work_item
+    editability: mutable
+    description: "Concise statement of the work"
+
+  - name: description
+    type: string
+    entity: work_item
+    editability: mutable
+    description: "Details, acceptance hints, context"
+
+  - name: kind
+    type: enum
+    enum_ref: kind
+    entity: work_item
+    editability: mutable
+    default: TASK
+    description: "Classification of work item type"
+
+  - name: state
+    type: enum
+    enum_ref: state
+    entity: work_item
+    editability: mutable
+    default: NEW
+    description: "WorkItem lifecycle state"
+
+  - name: priority
+    type: enum
+    enum_ref: priority
+    entity: work_item
+    editability: mutable
+    default: MEDIUM
+    description: "Priority level"
+
+  - name: severity
+    type: enum
+    enum_ref: severity
+    entity: work_item
+    editability: mutable
+    description: "Severity level"
+
+  - name: labels
+    type: array[string]
+    entity: work_item
+    editability: mutable
+    description: "Arbitrary categorization tags"
+
+  - name: assignees
+    type: array[string]
+    entity: work_item
+    editability: mutable
+    description: "Who is responsible for executing"
+
+  - name: due_at
+    type: datetime
+    entity: work_item
+    editability: mutable
+    description: "Target completion time/date"
+
+  - name: time_estimate
+    type: number
+    entity: work_item
+    editability: mutable
+    description: "Planned effort in hours"
+
+  - name: time_spent
+    type: number
+    entity: work_item
+    editability: mutable
+    description: "Tracked effort to date in hours"
+
+  # Project fields
+  - name: project_id
+    type: string
+    entity: project
+    editability: immutable
+    description: "Stable identifier (ULID, prefixed proj_)"
+
+  - name: name
+    type: string
+    entity: project
+    editability: mutable
+    description: "Short label for the project"
+
+  - name: description
+    type: string
+    entity: project
+    editability: mutable
+    description: "Human-readable summary"
+
+  - name: owner
+    type: string
+    entity: project
+    editability: mutable
+    description: "Accountable person or role"
+
+  - name: status
+    type: enum
+    enum_ref: project_status
+    entity: project
+    editability: mutable
+    default: ACTIVE
+    description: "Project lifecycle status"
+
+  - name: target_end_date
+    type: date
+    entity: project
+    editability: mutable
+    description: "Planned completion date"
+
+  # Deliverable fields
+  - name: deliverable_id
+    type: string
+    entity: deliverable
+    editability: immutable
+    description: "Stable identifier (ULID, prefixed del_)"
+
+  - name: name
+    type: string
+    entity: deliverable
+    editability: mutable
+    description: "Deliverable name"
+
+  - name: description
+    type: string
+    entity: deliverable
+    editability: mutable
+    description: "Deliverable description"
+
+  - name: status
+    type: enum
+    enum_ref: deliverable_status
+    entity: deliverable
+    editability: mutable
+    default: PLANNED
+    description: "Deliverable lifecycle status"
+
+  - name: acceptance_criteria
+    type: string
+    entity: deliverable
+    editability: mutable
+    description: "Acceptance criteria for the deliverable"
+
+  # OpsStream fields
+  - name: opsstream_id
+    type: string
+    entity: opsstream
+    editability: immutable
+    description: "Stable identifier (ULID, prefixed ops_)"
+
+  - name: name
+    type: string
+    entity: opsstream
+    editability: mutable
+    description: "OpsStream name"
+
+  - name: type
+    type: enum
+    enum_ref: opsstream_type
+    entity: opsstream
+    editability: mutable
+    default: OTHER
+    description: "Type of operational stream"
+
+  - name: owner
+    type: string
+    entity: opsstream
+    editability: mutable
+    description: "Accountable person or role"
+
+  - name: status
+    type: enum
+    enum_ref: opsstream_status
+    entity: opsstream
+    editability: mutable
+    default: ACTIVE
+    description: "OpsStream lifecycle status"
+
+  - name: description
+    type: string
+    entity: opsstream
+    editability: mutable
+    description: "OpsStream description"
+
+  # Artifact fields
+  - name: artifact_id
+    type: string
+    entity: artifact
+    editability: immutable
+    description: "Stable identifier (ULID, prefixed art_)"
+
+  - name: title
+    type: string
+    entity: artifact
+    editability: mutable
+    description: "Artifact title"
+
+  - name: kind
+    type: enum
+    enum_ref: artifact_kind
+    entity: artifact
+    editability: mutable
+    description: "Classification of artifact content type"
+
+  - name: content
+    type: string
+    entity: artifact
+    editability: mutable
+    description: "WAL-native inline content (markdown)"
+
+  - name: content_ref
+    type: string
+    entity: artifact
+    editability: via_deliver_op
+    description: "External URL for delivered copy (GDrive doc, email message_id)"
+
+  - name: status
+    type: enum
+    enum_ref: artifact_status
+    entity: artifact
+    editability: via_lifecycle_ops
+    default: DRAFT
+    description: "Artifact lifecycle status (changed via finalize/deliver/supersede/archive ops)"
+
+  - name: tags
+    type: array[string]
+    entity: artifact
+    editability: mutable
+    description: "Categorization tags"
+
+  - name: meta
+    type: object
+    entity: artifact
+    editability: mutable
+    description: "Free-form extension fields"
+
+  - name: contact_ref
+    type: string
+    entity: artifact
+    editability: mutable
+    description: "String reference to a contact (not a FK until contacts formalized)"
+
+entities:
+  work_item:
+    id_field: work_item_id
+    id_prefix: wi
+    label_field: title
+    atom_type: work
+
+  project:
+    id_field: project_id
+    id_prefix: proj
+    label_field: name
+    atom_type: work
+
+  deliverable:
+    id_field: deliverable_id
+    id_prefix: del
+    label_field: name
+    atom_type: work
+
+  opsstream:
+    id_field: opsstream_id
+    id_prefix: ops
+    label_field: name
+    atom_type: work
+
+  artifact:
+    id_field: artifact_id
+    id_prefix: art
+    label_field: title
+    atom_type: work
+
+  atom:
+    id_field: atom_id
+    id_prefix: atom
+    label_field: label
+
+  link:
+    id_field: link_id
+    id_prefix: lnk
+    label_field: predicate
+
+  source:
+    id_field: source_id
+    id_prefix: src
+    label_field: title
