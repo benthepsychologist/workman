@@ -4,7 +4,6 @@ Each test calls compile() and execute() against the real iglu schemas
 and checks the concrete output structure — no mocks, no fake schemas.
 """
 
-import os
 from pathlib import Path
 
 import pytest
