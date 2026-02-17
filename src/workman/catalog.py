@@ -21,6 +21,7 @@ class OpSpec:
     builder: Callable[..., dict]
     is_create: bool = False
     fk_asserts: list[tuple[str, str]] = field(default_factory=list)
+    dynamic_fk_asserts: list[tuple[str, str]] = field(default_factory=list)
 
 
 OP_CATALOG: dict[str, OpSpec] = {
@@ -63,7 +64,7 @@ OP_CATALOG: dict[str, OpSpec] = {
         event_type="work_item.created",
         builder=generic_pm_builder,
         is_create=True,
-        fk_asserts=[("project_id", "project")],
+        fk_asserts=[("project_id", "project"), ("deliverable_id", "deliverable"), ("opsstream_id", "opsstream")],
     ),
     "pm.work_item.complete": OpSpec(
         op="pm.work_item.complete",
@@ -82,7 +83,7 @@ OP_CATALOG: dict[str, OpSpec] = {
         id_field="work_item_id",
         event_type="work_item.moved",
         builder=generic_pm_builder,
-        fk_asserts=[("project_id", "project"), ("opsstream_id", "opsstream")],
+        fk_asserts=[("project_id", "project"), ("opsstream_id", "opsstream"), ("deliverable_id", "deliverable")],
     ),
     "pm.work_item.update": OpSpec(
         op="pm.work_item.update",
@@ -112,7 +113,7 @@ OP_CATALOG: dict[str, OpSpec] = {
         event_type="deliverable.created",
         builder=generic_pm_builder,
         is_create=True,
-        fk_asserts=[("project_id", "project")],
+        fk_asserts=[("project_id", "project"), ("opsstream_id", "opsstream")],
     ),
     "pm.deliverable.complete": OpSpec(
         op="pm.deliverable.complete",
@@ -231,6 +232,7 @@ OP_CATALOG: dict[str, OpSpec] = {
         id_field="artifact_id",
         event_type="artifact.superseded",
         builder=generic_pm_builder,
+        fk_asserts=[("superseded_by_id", "artifact")],
     ),
     "pm.artifact.archive": OpSpec(
         op="pm.artifact.archive",
@@ -251,6 +253,7 @@ OP_CATALOG: dict[str, OpSpec] = {
         event_type="link.created",
         builder=generic_pm_builder,
         is_create=True,
+        dynamic_fk_asserts=[("source_id", "source_type"), ("target_id", "target_type")],
     ),
     "link.remove": OpSpec(
         op="link.remove",

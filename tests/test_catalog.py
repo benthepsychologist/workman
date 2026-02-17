@@ -54,6 +54,19 @@ class TestOpSpec:
         )
         assert spec.fk_asserts == []
 
+    def test_opspec_dynamic_fk_asserts_defaults_to_empty_list(self):
+        """OpSpec.dynamic_fk_asserts should default to empty list."""
+        spec = OpSpec(
+            op="test.op",
+            request_schema="iglu:test/schema/jsonschema/1-0-0",
+            aggregate_type="test",
+            id_prefix="tst",
+            id_field="test_id",
+            event_type="test.created",
+            builder=generic_pm_builder,
+        )
+        assert spec.dynamic_fk_asserts == []
+
     def test_opspec_is_frozen(self):
         """OpSpec should be frozen (immutable)."""
         spec = OpSpec(
@@ -142,7 +155,7 @@ class TestWorkItemOps:
         assert spec.id_field == "work_item_id"
         assert spec.event_type == "work_item.created"
         assert spec.is_create is True
-        assert spec.fk_asserts == [("project_id", "project")]
+        assert spec.fk_asserts == [("project_id", "project"), ("deliverable_id", "deliverable"), ("opsstream_id", "opsstream")]
         assert spec.builder == generic_pm_builder
 
     def test_work_item_complete_spec(self):
@@ -172,7 +185,7 @@ class TestDeliverableOps:
         assert spec.id_field == "deliverable_id"
         assert spec.event_type == "deliverable.created"
         assert spec.is_create is True
-        assert spec.fk_asserts == [("project_id", "project")]
+        assert spec.fk_asserts == [("project_id", "project"), ("opsstream_id", "opsstream")]
         assert spec.builder == generic_pm_builder
 
     def test_deliverable_complete_spec(self):
@@ -257,10 +270,35 @@ class TestForeignKeyAsserts:
         spec = OP_CATALOG["pm.work_item.create"]
         assert ("project_id", "project") in spec.fk_asserts
 
+    def test_work_item_create_has_deliverable_fk(self):
+        """pm.work_item.create should assert deliverable FK."""
+        spec = OP_CATALOG["pm.work_item.create"]
+        assert ("deliverable_id", "deliverable") in spec.fk_asserts
+
+    def test_work_item_create_has_opsstream_fk(self):
+        """pm.work_item.create should assert opsstream FK."""
+        spec = OP_CATALOG["pm.work_item.create"]
+        assert ("opsstream_id", "opsstream") in spec.fk_asserts
+
     def test_deliverable_create_has_project_fk(self):
         """pm.deliverable.create should assert project FK."""
         spec = OP_CATALOG["pm.deliverable.create"]
         assert ("project_id", "project") in spec.fk_asserts
+
+    def test_deliverable_create_has_opsstream_fk(self):
+        """pm.deliverable.create should assert opsstream FK."""
+        spec = OP_CATALOG["pm.deliverable.create"]
+        assert ("opsstream_id", "opsstream") in spec.fk_asserts
+
+    def test_work_item_move_has_deliverable_fk(self):
+        """pm.work_item.move should assert deliverable FK."""
+        spec = OP_CATALOG["pm.work_item.move"]
+        assert ("deliverable_id", "deliverable") in spec.fk_asserts
+
+    def test_artifact_supersede_has_replacement_fk(self):
+        """pm.artifact.supersede should assert superseded_by_id FK."""
+        spec = OP_CATALOG["pm.artifact.supersede"]
+        assert ("superseded_by_id", "artifact") in spec.fk_asserts
 
     def test_project_create_has_no_fk(self):
         """pm.project.create should have no FK assertions."""

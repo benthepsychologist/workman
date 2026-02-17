@@ -27,6 +27,12 @@ class TestLinkCreate:
         assert wal["params"]["aggregate_id"].startswith("lnk_")
         assert wal["params"]["payload"]["predicate"] == "BLOCKS"
 
+        # Dynamic FK assertions: assert.exists for source and target
+        exists_ops = [op for op in plan["ops"] if op["method"] == "assert.exists"]
+        assert len(exists_ops) == 2
+        assert exists_ops[0]["params"] == {"aggregate_type": "work_item", "aggregate_id": "wi_A"}
+        assert exists_ops[1]["params"] == {"aggregate_type": "work_item", "aggregate_id": "wi_B"}
+
     def test_compile_caller_supplied_id(self):
         payload = {
             "link_id": "lnk_CUSTOM",
@@ -113,6 +119,13 @@ class TestLinkCatalog:
         assert spec.event_type == "link.removed"
         assert spec.is_create is False
 
-    def test_link_ops_have_no_fk_asserts(self):
+    def test_link_ops_have_no_static_fk_asserts(self):
         assert OP_CATALOG["link.create"].fk_asserts == []
         assert OP_CATALOG["link.remove"].fk_asserts == []
+
+    def test_link_create_has_dynamic_fk_asserts(self):
+        spec = OP_CATALOG["link.create"]
+        assert spec.dynamic_fk_asserts == [("source_id", "source_type"), ("target_id", "target_type")]
+
+    def test_link_remove_has_no_dynamic_fk_asserts(self):
+        assert OP_CATALOG["link.remove"].dynamic_fk_asserts == []

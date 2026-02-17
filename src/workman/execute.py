@@ -44,6 +44,22 @@ def execute(params: dict) -> dict:
         ValidationError: Schema/payload validation failure
     """
     op = params["op"]
+
+    # Route meta-ops that aren't individual PM catalog entries
+    if op == "pm.compile_intent":
+        from workman.intent import compile_intent
+        kwargs = {
+            "source": params["source"],
+            "actor": params["actor"],
+            "ctx": params.get("ctx"),
+        }
+        if "ops" in params:
+            kwargs["ops"] = params["ops"]
+        else:
+            kwargs["op_name"] = params["op_name"]
+            kwargs["payload"] = params["payload"]
+        return compile_intent(**kwargs)
+
     payload = params["payload"]
     ctx = params.get("ctx", {})
 

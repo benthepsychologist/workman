@@ -54,6 +54,12 @@ def compile(op: str, payload: dict, ctx: dict, pins: dict | None = None) -> dict
         if fk_field in payload and payload[fk_field]:
             assertions.append(assert_exists(fk_aggregate_type, payload[fk_field]))
 
+    for id_field, type_field in op_spec.dynamic_fk_asserts:
+        fk_id = payload.get(id_field)
+        fk_type = payload.get(type_field)
+        if fk_id and fk_type:
+            assertions.append(assert_exists(fk_type, fk_id))
+
     idempotency_key = make_idempotency_key(ctx, op, op_spec.aggregate_type, aggregate_id)
     wal_op = build_wal_append(
         idempotency_key=idempotency_key,

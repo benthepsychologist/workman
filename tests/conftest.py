@@ -31,9 +31,9 @@ def schema_registry(tmp_path):
     _write_schema(root, vendor, "pm.project.create", "1-0-0", {"project_id": {"type": "string"}, "name": {"type": "string"}})
     _write_schema(root, vendor, "pm.project.close", "1-0-0", {"project_id": {"type": "string"}})
     _write_schema(root, vendor, "pm.project.update", "1-0-0", {"project_id": {"type": "string"}, "name": {"type": "string"}, "status": {"type": "string"}})
-    _write_schema(root, vendor, "pm.work_item.create", "1-0-0", {"work_item_id": {"type": "string"}, "project_id": {"type": "string"}, "title": {"type": "string"}})
+    _write_schema(root, vendor, "pm.work_item.create", "1-0-0", {"work_item_id": {"type": "string"}, "project_id": {"type": "string"}, "deliverable_id": {"type": "string"}, "opsstream_id": {"type": "string"}, "title": {"type": "string"}})
     _write_schema(root, vendor, "pm.work_item.complete", "1-0-0", {"work_item_id": {"type": "string"}})
-    _write_schema(root, vendor, "pm.work_item.move", "1-0-0", {"work_item_id": {"type": "string"}, "project_id": {"type": "string"}, "opsstream_id": {"type": "string"}, "parent_id": {"type": "string"}})
+    _write_schema(root, vendor, "pm.work_item.move", "1-0-0", {"work_item_id": {"type": "string"}, "project_id": {"type": "string"}, "opsstream_id": {"type": "string"}, "deliverable_id": {"type": "string"}, "parent_id": {"type": "string"}})
     _write_schema(root, vendor, "pm.work_item.update", "1-0-0", {
         "work_item_id": {"type": "string"}, "title": {"type": "string"},
         "description": {"type": "string"}, "kind": {"type": "string"},
@@ -43,7 +43,7 @@ def schema_registry(tmp_path):
         "time_estimate": {"type": "number"}, "time_spent": {"type": "number"},
     })
     _write_schema(root, vendor, "pm.work_item.cancel", "1-0-0", {"work_item_id": {"type": "string"}, "reason": {"type": "string"}})
-    _write_schema(root, vendor, "pm.deliverable.create", "1-0-0", {"deliverable_id": {"type": "string"}, "project_id": {"type": "string"}, "name": {"type": "string"}})
+    _write_schema(root, vendor, "pm.deliverable.create", "1-0-0", {"deliverable_id": {"type": "string"}, "project_id": {"type": "string"}, "opsstream_id": {"type": "string"}, "name": {"type": "string"}})
     _write_schema(root, vendor, "pm.deliverable.complete", "1-0-0", {"deliverable_id": {"type": "string"}})
     _write_schema(root, vendor, "pm.deliverable.update", "1-0-0", {"deliverable_id": {"type": "string"}, "name": {"type": "string"}})
     _write_schema(root, vendor, "pm.deliverable.reject", "1-0-0", {"deliverable_id": {"type": "string"}, "reason": {"type": "string"}})

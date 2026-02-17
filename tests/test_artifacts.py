@@ -235,9 +235,12 @@ class TestArtifactCatalog:
             "pm.artifact.finalize",
             "pm.artifact.deliver",
             "pm.artifact.defer",
-            "pm.artifact.supersede",
             "pm.artifact.archive",
         ]
         for op_name in mutation_ops:
             spec = OP_CATALOG[op_name]
             assert spec.fk_asserts == [], f"{op_name} should have no FK asserts"
+
+    def test_supersede_has_replacement_fk(self):
+        spec = OP_CATALOG["pm.artifact.supersede"]
+        assert ("superseded_by_id", "artifact") in spec.fk_asserts

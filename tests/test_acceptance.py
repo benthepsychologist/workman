@@ -469,8 +469,16 @@ def test_artifact_defer_execute():
 def test_artifact_supersede_plan():
     plan = compile("pm.artifact.supersede", {"artifact_id": "art_T", "superseded_by_id": "art_NEW"}, CTX)
 
+    # assert.exists for the artifact itself
     assert plan["ops"][0]["method"] == "assert.exists"
-    wal = plan["ops"][1]
+    assert plan["ops"][0]["params"]["aggregate_type"] == "artifact"
+    assert plan["ops"][0]["params"]["aggregate_id"] == "art_T"
+    # assert.exists for the replacement artifact FK
+    assert plan["ops"][1]["method"] == "assert.exists"
+    assert plan["ops"][1]["params"]["aggregate_type"] == "artifact"
+    assert plan["ops"][1]["params"]["aggregate_id"] == "art_NEW"
+
+    wal = plan["ops"][2]
     assert wal["params"]["event_type"] == "artifact.superseded"
     assert wal["params"]["payload"]["superseded_by_id"] == "art_NEW"
 

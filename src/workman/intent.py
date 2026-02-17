@@ -1,7 +1,11 @@
-"""PMIntent compilation: bulk operation processing with diff and plan hashing.
+"""PMIntent compilation: envelope generation and bulk operation processing.
 
-compile_intent() takes a PMIntent dict and returns a CallableResult
-containing StoraclePlans, human-readable diff strings, and a SHA256 plan hash.
+compile_intent() accepts raw operation data and generates the PMIntent envelope
+internally (intent_id + issued_at), then compiles ops against the PM schema.
+Returns a CallableResult containing the generated intent, StoraclePlans,
+human-readable diff strings, and a SHA256 plan hash.
+
+Supports single-op (op_name + payload) and multi-op (ops list) modes.
 """
 
 from __future__ import annotations
@@ -9,6 +13,9 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from datetime import datetime, timezone
+
+from ulid import ULID
 
 from workman.compile import compile
 from workman.errors import CompileError
@@ -16,35 +23,87 @@ from workman.catalog import get_op_spec
 
 _REF_PATTERN = re.compile(r"^@ref:(\d+)$")
 
-_REQUIRED_INTENT_FIELDS = ("intent_id", "ops", "source", "actor", "issued_at")
+_VALID_ACTOR_TYPES = ("human", "system", "ai")
 
 
-def compile_intent(intent: dict, ctx: dict | None = None) -> dict:
-    """Compile a PMIntent into a CallableResult.
+def compile_intent(
+    *,
+    op_name: str | None = None,
+    payload: dict | None = None,
+    ops: list[dict] | None = None,
+    source: str,
+    actor: dict,
+    ctx: dict | None = None,
+) -> dict:
+    """Compile PM operations from raw data by constructing intent envelope and validating against schema.
+
+    Accepts either a single op (op_name + payload) or a list of ops.
+    Generates the PMIntent envelope internally (intent_id, issued_at).
 
     Args:
-        intent: PMIntent dict with intent_id, ops[], source, actor, issued_at.
+        op_name: Single-op mode — the PM operation name (e.g., 'pm.work_item.create').
+        payload: Single-op mode — operation-specific payload fields.
+        ops: Multi-op mode — list of {"op": str, "payload": dict} dicts.
+        source: Source of the operation (e.g., 'life-cli', 'system').
+        actor: Actor who initiated the operation {'actor_type': str, 'actor_id': str}.
         ctx: Optional execution context overrides.
 
     Returns:
-        CallableResult dict:
-        {
-            "schema_version": "1.0",
-            "items": [StoraclePlan, ...],
-            "stats": {"input": N, "output": N, "skipped": 0, "errors": 0},
-            "diff": ["CREATE work_item wi_01ABC (title='Fix bug', ...)"],
-            "plan_hash": "sha256hex..."
-        }
+        CallableResult dict with items[0] containing intent, plan, diff, plan_hash.
 
     Raises:
-        CompileError: Invalid intent structure or unknown operation.
-        ValidationError: Missing required fields or invalid payload.
+        CompileError: If parameters are invalid or compilation fails.
     """
-    _validate_intent_structure(intent)
+    # Validate source
+    if not source or not isinstance(source, str):
+        raise CompileError("source must be a non-empty string", op="pm.compile_intent")
+
+    # Validate actor
+    if not isinstance(actor, dict):
+        raise CompileError("actor must be a dict", op="pm.compile_intent")
+    if "actor_type" not in actor:
+        raise CompileError("actor must have actor_type field", op="pm.compile_intent")
+    if "actor_id" not in actor:
+        raise CompileError("actor must have actor_id field", op="pm.compile_intent")
+    if actor["actor_type"] not in _VALID_ACTOR_TYPES:
+        raise CompileError(
+            f"actor_type must be one of {_VALID_ACTOR_TYPES}, got '{actor['actor_type']}'",
+            op="pm.compile_intent",
+        )
+
+    # Resolve ops list — either from single-op params or multi-op list
+    if ops is not None and op_name is not None:
+        raise CompileError("Pass either (op_name, payload) or ops, not both", op="pm.compile_intent")
+
+    if ops is not None:
+        if not isinstance(ops, list) or len(ops) == 0:
+            raise CompileError("ops must be a non-empty list", op="pm.compile_intent")
+        intent_ops = ops
+    elif op_name is not None:
+        if not op_name or not isinstance(op_name, str):
+            raise CompileError("op_name must be a non-empty string", op="pm.compile_intent")
+        if not isinstance(payload, dict):
+            raise CompileError("payload must be a dict", op="pm.compile_intent")
+        intent_ops = [{"op": op_name, "payload": payload}]
+    else:
+        raise CompileError("Must provide either (op_name, payload) or ops", op="pm.compile_intent")
+
+    if len(intent_ops) > 100:
+        raise CompileError("PMIntent exceeds maximum of 100 ops", op="pm.compile_intent")
+
+    # Generate intent envelope
+    intent_id = f"pmi_{ULID()}"
+    issued_at = datetime.now(timezone.utc).isoformat()
+
+    intent = {
+        "intent_id": intent_id,
+        "ops": intent_ops,
+        "source": source,
+        "actor": actor,
+        "issued_at": issued_at,
+    }
 
     ops = intent["ops"]
-    if len(ops) > 100:
-        raise CompileError("PMIntent exceeds maximum of 100 ops", op="pm.compile_intent")
 
     # Build context from intent
     intent_ctx = {
@@ -59,76 +118,77 @@ def compile_intent(intent: dict, ctx: dict | None = None) -> dict:
     plans: list[dict] = []
     diff: list[str] = []
     generated_ids: list[str] = []  # aggregate_id per op index
+    prior_ops: list[tuple[str, dict, str]] = []  # (op_name, payload, aggregate_id)
 
     for i, op_entry in enumerate(ops):
-        op_name = op_entry["op"]
-        payload = dict(op_entry.get("payload", {}))  # shallow copy to avoid mutation
+        entry_op_name = op_entry["op"]
+        entry_payload = dict(op_entry.get("payload", {}))  # shallow copy to avoid mutation
 
         # Resolve @ref:N references
-        payload = _resolve_refs(payload, generated_ids, i)
+        entry_payload = _resolve_refs(entry_payload, generated_ids, i)
+
+        # Resolve inheritance (auto-fill parent container fields)
+        _resolve_inheritance(entry_op_name, entry_payload, prior_ops)
 
         # Compile the individual op
-        plan = compile(op_name, payload, intent_ctx)
+        plan = compile(entry_op_name, entry_payload, intent_ctx)
         plans.append(plan)
 
         # Extract the aggregate_id from the plan's wal.append op
         aggregate_id = _extract_aggregate_id(plan)
         generated_ids.append(aggregate_id)
+        prior_ops.append((entry_op_name, entry_payload, aggregate_id))
 
         # Generate diff line
-        diff_line = _make_diff_line(op_name, aggregate_id, payload)
+        diff_line = _make_diff_line(entry_op_name, aggregate_id, entry_payload)
         diff.append(diff_line)
 
-    # Compute plan hash
-    plan_hash = _compute_plan_hash(plans)
+    # Merge all individual plans into a single StoraclePlan
+    all_ops = []
+    for plan in plans:
+        all_ops.extend(plan["ops"])
+
+    # Renumber IDs for uniqueness across the merged plan
+    a_count = 0
+    w_count = 0
+    for op_entry_merged in all_ops:
+        if op_entry_merged["method"].startswith("assert"):
+            a_count += 1
+            op_entry_merged["id"] = f"a{a_count}"
+        else:
+            w_count += 1
+            op_entry_merged["id"] = f"w{w_count}"
+
+    merged_plan = {
+        "plan_version": "storacle.plan/1.0.0",
+        "plan_id": f"ulid:{ULID()}",
+        "jsonrpc": "2.0",
+        "meta": {
+            "source": "workman",
+            "op": "pm.compile_intent",
+            "correlation_id": intent["intent_id"],
+        },
+        "ops": all_ops,
+    }
+
+    # Compute plan hash over the merged plan
+    plan_hash = _compute_plan_hash([merged_plan])
 
     return {
         "schema_version": "1.0",
-        "items": plans,
+        "items": [{
+            "intent": intent,
+            "plan": merged_plan,
+            "diff": diff,
+            "plan_hash": plan_hash,
+        }],
         "stats": {
             "input": len(ops),
-            "output": len(plans),
+            "output": len(ops),
             "skipped": 0,
             "errors": 0,
         },
-        "diff": diff,
-        "plan_hash": plan_hash,
     }
-
-
-def _validate_intent_structure(intent: dict) -> None:
-    """Validate required PMIntent fields."""
-    for field in _REQUIRED_INTENT_FIELDS:
-        if field not in intent:
-            raise CompileError(
-                f"PMIntent missing required field: {field}",
-                op="pm.compile_intent",
-            )
-
-    if not isinstance(intent["ops"], list) or len(intent["ops"]) == 0:
-        raise CompileError(
-            "PMIntent.ops must be a non-empty list",
-            op="pm.compile_intent",
-        )
-
-    actor = intent.get("actor", {})
-    if not isinstance(actor, dict) or "actor_type" not in actor or "actor_id" not in actor:
-        raise CompileError(
-            "PMIntent.actor must have actor_type and actor_id",
-            op="pm.compile_intent",
-        )
-
-    for i, op_entry in enumerate(intent["ops"]):
-        if "op" not in op_entry:
-            raise CompileError(
-                f"PMIntent.ops[{i}] missing 'op' field",
-                op="pm.compile_intent",
-            )
-        if "payload" not in op_entry:
-            raise CompileError(
-                f"PMIntent.ops[{i}] missing 'payload' field",
-                op="pm.compile_intent",
-            )
 
 
 def _resolve_refs(payload: dict, generated_ids: list[str], current_index: int) -> dict:
@@ -202,3 +262,90 @@ def _compute_plan_hash(plans: list[dict]) -> str:
     """Compute SHA256 hash of serialized plans for integrity verification."""
     serialized = json.dumps(plans, sort_keys=True, default=str)
     return hashlib.sha256(serialized.encode()).hexdigest()
+
+
+def _resolve_inheritance(op_name: str, payload: dict, prior_ops: list[tuple[str, dict, str]]) -> None:
+    """Anchor-based container inheritance (ADR-002).
+
+    Hierarchy: OpsStream -> Project -> Deliverable -> WorkItem
+    Rule: your lowest assigned container is your anchor. You can change at or
+    below your anchor (higher containers auto-fill), but you cannot set any
+    container field above your anchor.
+    """
+
+    if op_name in ("pm.work_item.create", "pm.work_item.move"):
+        del_id = payload.get("deliverable_id")
+        if del_id:
+            # Deliverable is the anchor — auto-fill project (overwrites any explicit value).
+            # If the deliverable has no project, clear the work item's project too.
+            found, parent_project = _find_parent_field(prior_ops, del_id, "project_id")
+            if found:
+                if parent_project:
+                    payload["project_id"] = parent_project
+                else:
+                    payload.pop("project_id", None)
+
+    if op_name == "pm.work_item.move":
+        # Reverse check: can't reassign above your anchor
+        wi_id = payload.get("work_item_id")
+        if wi_id and not payload.get("deliverable_id"):
+            # No deliverable in this move — check if work item has one from prior ops
+            current_del = _find_entity_field(prior_ops, wi_id, "deliverable_id")
+            if current_del:
+                if payload.get("project_id"):
+                    raise CompileError(
+                        f"Cannot reassign project: work_item {wi_id} is anchored to "
+                        f"deliverable {current_del}. Change deliverable instead, or "
+                        f"detach first.",
+                        op=op_name,
+                    )
+                if payload.get("opsstream_id"):
+                    raise CompileError(
+                        f"Cannot reassign opsstream: work_item {wi_id} is anchored "
+                        f"to deliverable {current_del}. Change deliverable instead, "
+                        f"or detach first.",
+                        op=op_name,
+                    )
+
+        if wi_id and not payload.get("deliverable_id") and not payload.get("project_id"):
+            # No deliverable or project in this move — check if work item has a project
+            current_proj = _find_entity_field(prior_ops, wi_id, "project_id")
+            if current_proj and payload.get("opsstream_id"):
+                raise CompileError(
+                    f"Cannot reassign opsstream: work_item {wi_id} is anchored to "
+                    f"project {current_proj}. Change project instead, or detach first.",
+                    op=op_name,
+                )
+
+    if op_name in ("pm.work_item.create", "pm.work_item.move",
+                    "pm.deliverable.create"):
+        # project → opsstream auto-fill
+        proj_id = payload.get("project_id")
+        if proj_id:
+            found, parent_ops = _find_parent_field(prior_ops, proj_id, "opsstream_id")
+            if found:
+                if parent_ops:
+                    payload["opsstream_id"] = parent_ops
+                else:
+                    payload.pop("opsstream_id", None)
+
+
+def _find_parent_field(prior_ops: list[tuple[str, dict, str]], entity_id: str, field_name: str) -> tuple[bool, str | None]:
+    """Look up a field from a prior op's payload by aggregate_id.
+
+    Returns (found, value) — found=True means the entity exists in prior_ops,
+    value may be None if the entity doesn't have that field.
+    """
+    for prev_op_name, prev_payload, prev_aggregate_id in prior_ops:
+        if prev_aggregate_id == entity_id:
+            return True, prev_payload.get(field_name)
+    return False, None
+
+
+def _find_entity_field(prior_ops: list[tuple[str, dict, str]], entity_id: str, field_name: str) -> str | None:
+    """Find the most recent value of a field for an entity across prior ops."""
+    result = None
+    for _, prev_payload, prev_aggregate_id in prior_ops:
+        if prev_aggregate_id == entity_id and field_name in prev_payload:
+            result = prev_payload[field_name]
+    return result
